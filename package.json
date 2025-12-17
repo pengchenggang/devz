@@ -1,6 +1,6 @@
 {
   "name": "devz",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A simple package that logs devz",
   "main": "index.js",
   "bin": {
