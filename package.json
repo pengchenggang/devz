@@ -6,6 +6,9 @@
   "bin": {
     "devz": "./index.js"
   },
+  "scripts": {
+    "publish": "npm version patch -m \"chore: release %s\" && git push --follow-tags && npm publish"
+  },
   "keywords": ["devz", "log", "utility"],
   "author": "pengchenggang",
   "license": "GPL-3.0-only",
