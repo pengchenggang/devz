@@ -51,3 +51,5 @@ npm version major      # 1.0.0 → 2.0.0 （主版本）
 ## 自动更新版本号并发布的命令
 
 npm version patch -m "chore: release %s" && git push --follow-tags && npm publish
+
+执行 publish-to-npmjs 前要将git全部提交，不能有改动才能发布成功~
