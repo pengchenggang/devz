@@ -7,7 +7,7 @@
     "devz": "./index.js"
   },
   "scripts": {
-    "publish": "npm version patch -m \"chore: release %s\" && git push --follow-tags && npm publish"
+    "publish-to-npmjs": "npm version patch -m \"chore: release %s\" && git push --follow-tags && npm publish"
   },
   "keywords": [
     "devz",
