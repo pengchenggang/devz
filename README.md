@@ -1,6 +1,9 @@
 # devz
 npm install -g devz
 
+## 作用
+将当前目录的所有js和vue 文件 递归copy，然后到ai那里去问问题
+
 ## 安装
 
 npm config get registry

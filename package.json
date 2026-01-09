@@ -23,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/pengchenggang/devz/issues"
   },
-  "homepage": "https://github.com/pengchenggang/devz#readme"
+  "homepage": "https://github.com/pengchenggang/devz#readme",
+  "dependencies": {
+    "clipboardy": "^2.3.0"
+  }
 }
