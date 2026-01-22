@@ -4,6 +4,11 @@ npm install -g devz
 ## 作用
 将当前目录的所有js和vue 文件 递归copy，然后到ai那里去问问题
 
+## 内网安装
+
+npm install -g devz-1.0.6.tgz
+具体文件名 看版本号
+
 ## 安装
 
 npm config get registry
