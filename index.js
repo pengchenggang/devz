@@ -1,29 +1,55 @@
 #!/usr/bin/env node
 
-// index.js（CommonJS，适用于 Node.js 12+）
 const fs = require('fs');
 const path = require('path');
-const clipboardy = require('clipboardy'); // ✅ v2.3.0 支持 require()
+const clipboardy = require('clipboardy');
 
-// ✅ 解析命令行参数：默认为 'vue,js'，也可传入如 'vue,js,jsx,html'
-const extArg = process.argv[2] || 'vue,js';
-const extensions = extArg.split(',').map(ext => ext.trim()).filter(Boolean);
+// 参数解析
+const includeArg = process.argv[2] || '.vue,.js,package.json';
+const excludeArg = process.argv[3] || ''; // 可选，第二个参数
 
-// 构建正则：例如 /\.(vue|js|jsx|html)$/i
-const extPattern = new RegExp(`\\.(${extensions.map(e => e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`, 'i');
+const includePatterns = includeArg.split(',').map(p => p.trim()).filter(Boolean);
+const excludePatterns = excludeArg.split(',').map(p => p.trim()).filter(Boolean);
 
+// 通用匹配函数
+function matchesPattern(filename, patterns) {
+  for (const p of patterns) {
+    // 1. 精确文件名匹配
+    if (filename === p) {
+      return true;
+    }
+    // 2. 扩展名匹配（使用 path.extname 确保是主扩展名）
+    if (p.startsWith('.')) {
+      if (path.extname(filename) === p) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
-function getAllVueAndJsFiles(dir, fileList = []) {
+function shouldInclude(filename) {
+  return matchesPattern(filename, includePatterns);
+}
+
+function shouldExclude(filename) {
+  return matchesPattern(filename, excludePatterns);
+}
+
+function collectFiles(dir, fileList = []) {
   const items = fs.readdirSync(dir);
   for (const item of items) {
     const fullPath = path.join(dir, item);
     const stat = fs.statSync(fullPath);
+
     if (stat.isDirectory()) {
-      if (item === 'node_modules' || item === '.git') continue;
-      getAllVueAndJsFiles(fullPath, fileList);
-      } else if (extPattern.test(item)) {
-    // } else if (/\.(vue|js)$/.test(item)) {
-      fileList.push(fullPath);
+      if (['node_modules', '.git'].includes(item)) continue;
+      collectFiles(fullPath, fileList);
+    } else {
+      // 先包含，再排除
+      if (shouldInclude(item) && !shouldExclude(item)) {
+        fileList.push(fullPath);
+      }
     }
   }
   return fileList;
@@ -31,21 +57,26 @@ function getAllVueAndJsFiles(dir, fileList = []) {
 
 function main() {
   try {
-    const targetDir = '.';
-    const files = getAllVueAndJsFiles(targetDir);
+    const files = collectFiles('.');
     let output = '';
 
     for (const file of files) {
-      const relativePath = path.relative(targetDir, file).replace(/\\/g, '/');
+      const relPath = path.relative('.', file).replace(/\\/g, '/');
       const content = fs.readFileSync(file, 'utf8');
-      output += `[${relativePath}]\n${content}\n\n`;
+      output += `[${relPath}]\n${content}\n\n`;
     }
 
-    clipboardy.writeSync(output); // ✅ v2 支持 sync
-    // console.log(`✅ 已复制 ${files.length} 个 .vue/.js 文件内容到剪贴板！`);
-    console.log(`✅ 已复制 ${files.length} 个 .${extensions.join('/.')} 文件内容到剪贴板！`);
+    clipboardy.writeSync(output);
+
+    const includes = includePatterns.length ? includePatterns.join(', ') : '（无）';
+    const excludes = excludePatterns.length ? excludePatterns.join(', ') : '（无）';
+    console.log(`✅ 已复制 ${files.length} 个文件到剪贴板！`);
+    console.log(`   包含: [${includes}]`);
+    if (excludePatterns.length) {
+      console.log(`   排除: [${excludes}]`);
+    }
   } catch (err) {
-    console.error('❌ 出错:', err.message);
+    console.error('❌ 错误:', err.message);
   }
 }
 

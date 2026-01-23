@@ -1,6 +1,9 @@
 # devz
 npm install -g devz
 
+## 更新日志
+devz 包含列表逗分 排除列表逗分
+
 ## 作用
 将当前目录的所有js和vue 文件 递归copy，然后到ai那里去问问题
 
