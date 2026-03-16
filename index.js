@@ -3,15 +3,14 @@
 const fs = require('fs');
 const path = require('path');
 const clipboardy = require('clipboardy');
+const inquirer = require('inquirer');
 
 // ===== 获取版本号 =====
 let VERSION = 'unknown';
 try {
-  // 尝试从 package.json 读取版本
   const pkg = require('./package.json');
   VERSION = pkg.version || 'unknown';
 } catch (e) {
-  // 如果找不到 package.json（比如全局安装时路径不对），尝试从 __dirname 找
   try {
     const pkgPath = path.join(__dirname, 'package.json');
     if (fs.existsSync(pkgPath)) {
@@ -19,94 +18,104 @@ try {
       VERSION = pkg.version || 'unknown';
     }
   } catch (err) {
-    // 忽略错误，保留 unknown
+    // ignore
   }
 }
 
 // ===== 帮助信息 =====
 function showHelp() {
   console.log(`
-devz v${VERSION} —— 快速收集项目文件内容到剪贴板
+devz v${VERSION} —— 开发辅助工具
 
 用法:
-  devz [包含规则] [排除规则]
+  devz                          # 显示交互菜单
+  devz copy [包含规则] [排除规则]  # 复制项目文件内容到剪贴板
+  devz template <name>          # 复制指定模板（如 vue2init）
+  devz help | -h | --help       # 显示此帮助
 
-参数说明:
-  [包含规则]  : 逗号分隔的文件匹配规则（默认: ".vue,.js,package.json"）
-                - 扩展名：如 .vue, .ts
-                - 完整文件名：如 package.json, vite.config.js
-
-  [排除规则]  : 逗号分隔的文件或目录名（可选）
-                - 文件：如 package-lock.json, .DS_Store
-                - 目录：如 dist, coverage, __tests__
-                - 注意：node_modules 和 .git 始终被排除，无需手动指定
+子命令:
+  copy        收集指定文件内容并复制到剪贴板
+  template    复制代码模板（当前支持: vue2init）
 
 示例:
-  devz                          # 默认包含 .vue/.js/package.json
-  devz ".ts,.tsx" "dist,__tests__"
-  devz "" ".env.local"          # 使用默认包含，但排除 .env.local
+  devz
+  devz copy ".ts,.tsx" "dist,node_modules"
+  devz template vue2init
 
 选项:
-  -h, --help    显示此帮助信息
+  -h, --help    显示帮助信息
 `);
 }
 
-// ===== 参数解析 =====
-const args = process.argv.slice(2);
+// ===== Vue 2 模板（从文件读取）=====
+function copyVue2Template() {
+  const templatePath = path.join(__dirname, 'template', 'vue2init.vue');
 
-if (args.includes('-h') || args.includes('--help')) {
-  showHelp();
-  process.exit(0);
-}
+  try {
+    if (!fs.existsSync(templatePath)) {
+      console.error(`❌ 模板文件不存在: ${templatePath}`);
+      process.exit(1);
+    }
 
-const includeArg = args[0] || '.vue,.js,package.json';
-const excludeArg = args[1] || '';
-
-const userIncludePatterns = includeArg.split(',').map(p => p.trim()).filter(Boolean);
-const userExcludePatterns = excludeArg.split(',').map(p => p.trim()).filter(Boolean);
-
-const FORCE_EXCLUDE_DIRS = ['node_modules', '.git'];
-const excludePatterns = [...new Set([...FORCE_EXCLUDE_DIRS, ...userExcludePatterns])];
-
-// ===== 匹配逻辑 =====
-function matchesPattern(name, patterns) {
-  for (const p of patterns) {
-    if (name === p) return true;
-    if (p.startsWith('.') && path.extname(name) === p) return true;
+    const template = fs.readFileSync(templatePath, 'utf8');
+    clipboardy.writeSync(template);
+    console.log('✅ Vue 2 初始化模板已复制到剪贴板！');
+  } catch (err) {
+    console.error('❌ 读取或复制模板失败:', err.message);
+    process.exit(1);
   }
-  return false;
 }
 
-function shouldIncludeFile(filename) {
-  return matchesPattern(filename, userIncludePatterns);
-}
+// ===== 原有文件收集逻辑 =====
+function runCopyCommand(includeArg, excludeArg) {
+  const userIncludePatterns = (includeArg || '.vue,.js,package.json')
+    .split(',')
+    .map(p => p.trim())
+    .filter(Boolean);
 
-function shouldExcludeItem(itemName) {
-  return matchesPattern(itemName, excludePatterns);
-}
+  const userExcludePatterns = (excludeArg || '')
+    .split(',')
+    .map(p => p.trim())
+    .filter(Boolean);
 
-// ===== 文件收集 =====
-function collectFiles(dir, fileList = []) {
-  const items = fs.readdirSync(dir);
-  for (const item of items) {
-    if (shouldExcludeItem(item)) continue;
+  const FORCE_EXCLUDE_DIRS = ['node_modules', '.git'];
+  const excludePatterns = [...new Set([...FORCE_EXCLUDE_DIRS, ...userExcludePatterns])];
 
-    const fullPath = path.join(dir, item);
-    const stat = fs.statSync(fullPath);
+  function matchesPattern(name, patterns) {
+    for (const p of patterns) {
+      if (name === p) return true;
+      if (p.startsWith('.') && path.extname(name) === p) return true;
+    }
+    return false;
+  }
 
-    if (stat.isDirectory()) {
-      collectFiles(fullPath, fileList);
-    } else {
-      if (shouldIncludeFile(item)) {
-        fileList.push(fullPath);
+  function shouldIncludeFile(filename) {
+    return matchesPattern(filename, userIncludePatterns);
+  }
+
+  function shouldExcludeItem(itemName) {
+    return matchesPattern(itemName, excludePatterns);
+  }
+
+  function collectFiles(dir, fileList = []) {
+    const items = fs.readdirSync(dir);
+    for (const item of items) {
+      if (shouldExcludeItem(item)) continue;
+
+      const fullPath = path.join(dir, item);
+      const stat = fs.statSync(fullPath);
+
+      if (stat.isDirectory()) {
+        collectFiles(fullPath, fileList);
+      } else {
+        if (shouldIncludeFile(item)) {
+          fileList.push(fullPath);
+        }
       }
     }
+    return fileList;
   }
-  return fileList;
-}
 
-// ===== 主函数 =====
-function main() {
   try {
     const files = collectFiles('.');
     let output = '';
@@ -128,4 +137,80 @@ function main() {
   }
 }
 
-main();
+// ===== 菜单交互 =====
+function showMenu() {
+  inquirer
+    .prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: '请选择操作：',
+        choices: [
+          { name: '复制项目文件内容（devz copy）', value: 'copy' },
+          { name: '复制 Vue 2 初始化模板（devz template vue2init）', value: 'vue2' },
+          { name: '帮助（devz help）', value: 'help' },
+          { name: '退出', value: 'exit' }
+        ]
+      }
+    ])
+    .then((answers) => {
+      switch (answers.action) {
+        case 'copy':
+          runCopyCommand();
+          break;
+        case 'vue2':
+          copyVue2Template();
+          break;
+        case 'help':
+          showHelp();
+          break;
+        case 'exit':
+        default:
+          console.log('👋 已退出。');
+          process.exit(0);
+      }
+    })
+    .catch((err) => {
+      console.error('❌ 菜单错误:', err.message);
+      process.exit(1);
+    });
+}
+
+// ===== 主入口：命令解析 =====
+const args = process.argv.slice(2);
+
+// 统一处理 help
+if (
+  args.includes('-h') ||
+  args.includes('--help') ||
+  args[0] === 'help'
+) {
+  showHelp();
+  process.exit(0);
+}
+
+const command = args[0];
+
+if (command === 'copy') {
+  // devz copy [include] [exclude]
+  runCopyCommand(args[1], args[2]);
+} else if (command === 'template') {
+  // devz template <name>
+  const templateName = args[1];
+  if (templateName === 'vue2init') {
+    copyVue2Template();
+  } else {
+    console.error(`❌ 未知模板: ${templateName}`);
+    console.log('当前支持的模板: vue2init');
+    process.exit(1);
+  }
+} else if (args.length === 0) {
+  // devz （无参数）→ 菜单
+  showMenu();
+} else {
+  // 未知命令
+  console.error(`❌ 未知命令: ${command}`);
+  console.log('可用命令: copy, template, help');
+  console.log('运行 `devz help` 查看帮助');
+  process.exit(1);
+}

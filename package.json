@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/pengchenggang/devz#readme",
   "dependencies": {
-    "clipboardy": "^2.3.0"
+    "clipboardy": "^2.3.0",
+    "inquirer": "^8.2.6"
   }
 }
