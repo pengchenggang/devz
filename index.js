@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const clipboardy = require('clipboardy')
 const inquirer = require('inquirer')
-const prompt = inquirer.default.prompt // 👈 关键！
+// const prompt = inquirer.default.prompt // 👈 关键！
 
 // ===== 获取版本号 =====
 let VERSION = 'unknown'
@@ -140,9 +140,9 @@ function runCopyCommand (includeArg, excludeArg) {
 
 // ===== 菜单交互 =====
 function showMenu () {
-  prompt([
+  inquirer.prompt([
     {
-      type: 'rawlist',
+      type: 'list',
       name: 'action',
       message: '请选择操作：',
       choices: [
@@ -155,11 +155,7 @@ function showMenu () {
       loop: false,
       // 👇 关键：禁用内置帮助提示，减少渲染复杂度
     }
-  ], {
-    // 👇 强制使用标准输入输出流，并假设是 TTY
-    input: process.stdin,
-    output: process.stdout
-  })
+  ])
     .then((answers) => {
       switch (answers.action) {
         case 'copy':
