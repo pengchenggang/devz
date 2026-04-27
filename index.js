@@ -60,7 +60,25 @@ function copyVue2Template () {
 
     const template = fs.readFileSync(templatePath, 'utf8')
     clipboardy.writeSync(template)
-    console.log('✅ Vue 2 初始化模板已复制到剪贴板！')
+    console.log('✅ Vue2 初始化模板已复制到剪贴板！')
+  } catch (err) {
+    console.error('❌ 读取或复制模板失败:', err.message)
+    process.exit(1)
+  }
+}
+
+function copyVue3Template () {
+  const templatePath = path.join(__dirname, 'template', 'vue3init.vue')
+
+  try {
+    if (!fs.existsSync(templatePath)) {
+      console.error(`❌ 模板文件不存在: ${templatePath}`)
+      process.exit(1)
+    }
+
+    const template = fs.readFileSync(templatePath, 'utf8')
+    clipboardy.writeSync(template)
+    console.log('✅ Vue3 初始化模板已复制到剪贴板！')
   } catch (err) {
     console.error('❌ 读取或复制模板失败:', err.message)
     process.exit(1)
@@ -147,7 +165,8 @@ function showMenu () {
       message: '请选择操作：',
       choices: [
         { name: '复制项目文件内容（devz copy）', value: 'copy' },
-        { name: '复制 Vue 2 初始化模板（devz template vue2init）', value: 'vue2' },
+        { name: '复制 Vue2 初始化模板（devz template vue2init）', value: 'vue2' },
+        { name: '复制 Vue3 初始化模板（devz template vue3init）', value: 'vue3' },
         { name: '帮助（devz help）', value: 'help' },
         { name: '退出', value: 'exit' }
       ],
@@ -163,6 +182,9 @@ function showMenu () {
           break
         case 'vue2':
           copyVue2Template()
+          break
+        case 'vue3':
+          copyVue3Template()
           break
         case 'help':
           showHelp()
