@@ -28,6 +28,8 @@ function showHelp () {
   console.log(`
 devz v${VERSION} —— 开发辅助工具
 
+动态目录存放在 C:\\devz-template
+
 用法:
   devz                          # 显示交互菜单
   devz copy [包含规则] [排除规则]  # 复制项目文件内容到剪贴板
@@ -158,25 +160,68 @@ function runCopyCommand (includeArg, excludeArg) {
 
 // ===== 菜单交互 =====
 function showMenu () {
+  const templateDir = 'C:\\devz-template'
+
+  let dynamicChoices = []
+
+  // 尝试读取模板目录
+  try {
+    if (fs.existsSync(templateDir)) {
+      const items = fs.readdirSync(templateDir)
+      for (const item of items) {
+        const fullPath = path.join(templateDir, item)
+        const stat = fs.statSync(fullPath)
+        if (stat.isFile()) {
+          dynamicChoices.push({
+            name: `复制 [${item}]`,
+            value: { type: 'custom-template', filePath: fullPath }
+          })
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ 读取模板目录失败 - 动态目录存放在 C:\\devz-template - err.message:', err.message)
+  }
+
+   const baseChoices = [
+    { name: '复制项目文件内容（devz copy）', value: 'copy' },
+    { name: '复制 Vue2 初始化模板（devz template vue2init）', value: 'vue2' },
+    { name: '复制 Vue3 初始化模板（devz template vue3init）', value: 'vue3' },
+    { name: '帮助（devz help）', value: 'help' },
+    { name: '退出', value: 'exit' }
+  ]
+
+  const allChoices = [...dynamicChoices, ...baseChoices]
+
   inquirer.prompt([
     {
       type: 'list',
       name: 'action',
       message: '请选择操作：',
-      choices: [
-        { name: '复制项目文件内容（devz copy）', value: 'copy' },
-        { name: '复制 Vue2 初始化模板（devz template vue2init）', value: 'vue2' },
-        { name: '复制 Vue3 初始化模板（devz template vue3init）', value: 'vue3' },
-        { name: '帮助（devz help）', value: 'help' },
-        { name: '退出', value: 'exit' }
-      ],
+      choices: allChoices,
       // pageSize: 10,     // 必须 ≥ 选项数
       loop: false,
       // 👇 关键：禁用内置帮助提示，减少渲染复杂度
     }
   ])
     .then((answers) => {
-      switch (answers.action) {
+      const action = answers.action
+
+      // 处理自定义模板
+      if (typeof action === 'object' && action.type === 'custom-template') {
+        try {
+          const content = fs.readFileSync(action.filePath, 'utf8')
+          clipboardy.writeSync(content)
+          const fileName = path.basename(action.filePath)
+          console.log(`✅ 模板 [${fileName}] 已复制到剪贴板！`)
+        } catch (err) {
+          console.error('❌ 读取或复制模板失败:', err.message)
+          process.exit(1)
+        }
+        return
+      }
+
+      switch (action) {
         case 'copy':
           runCopyCommand()
           break
